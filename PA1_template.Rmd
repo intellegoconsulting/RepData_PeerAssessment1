@@ -1,25 +1,88 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Project 1"
+author: "chen"
+date: "7/1/2020"
+output:
+  pdf_document: default
+  html_document: default
 ---
-
 
 ## Loading and preprocessing the data
 
+```{r, echo=TRUE, results = "hide"}
+setwd("~/Coursera class/C5/project1")
+act <- read.csv('./activity.csv')
+head(act)
+```
 
+##### Libraries needed
+```{r, results="hide"}
+library(ggplot2)
+library(mice)
+```
 
 ## What is mean total number of steps taken per day?
+##### aggregate to date level and then create the histogram
+```{r}
+day_steps <- tapply(act$steps, act$date, sum, na.rm=TRUE)
+##day_steps <- aggregate(steps ~ date, data=act, FUN =sum, na.rm=TRUE)
+hist(day_steps, breaks=20, main="Histogram of total number of steps taken each day")
+```
 
+The mean steps taken each day is **`r format(mean(day_steps))`**.
+
+The median steps taken each day is **`r format(median(day_steps))`**.
 
 
 ## What is the average daily activity pattern?
+1. Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
+```{r}
+steps_by_int <- aggregate(steps ~ interval, data=act, FUN = mean, na.rm=TRUE)
+plot(steps_by_int, type="l", xlab="interval", ylab="avg steps", main = "Activities at each interval across all days")
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+steps_by_int$interval[which.max(steps_by_int$steps)]
+```
 
 
 ## Imputing missing values
 
+#####Use the mice package to impute missing using 'mean' method
 
+```{r, echo=TRUE, results="hide"}
+md.pattern(act)
+act2 <- mice(act, m=5, maxit=50, meth='mean', seed=500)
+completeact <- complete(act2,1)
+```
+Histogram of the total number of steps taken each day after missing values are imputed
+```{r}
+day_steps2 <- tapply(completeact$steps, completeact$date, sum, na.rm=TRUE)
+hist(day_steps2, breaks=20, main="Histogram of total number of steps taken each day after imputing missing")
+```
 
+The mean steps taken each day after imputing missing is **`r format(mean(day_steps2))`**.
+
+The median steps taken each day after imputing missing is **`r format(median(day_steps2))`**.
+
+ 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r, results="hide"}
+completeact$daytype <- ifelse(as.POSIXlt(completeact$date)$wday %in% c(0,6), 'weekend', 'weekday')
+table(completeact$daytype)
+head(completeact)
+```
+
+```{r}
+steps_by_int2 <- aggregate(steps ~ interval + daytype, data=completeact, FUN = mean, na.rm=TRUE)
+g <- ggplot(steps_by_int2, aes(interval, steps))
+g + geom_line() + facet_grid(daytype ~ .) + xlab("5- minte interval") + ylab("avg number of steps")
+```
+
+Yes, there is a difference in activity patterns between weekdays and weekends!
